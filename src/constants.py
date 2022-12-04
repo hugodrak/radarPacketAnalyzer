@@ -1,0 +1,2 @@
+RadarControlState = {'RCS_OFF': -1, 'RCS_MANUAL': 0,'RCS_AUTO_1': 1, 'RCS_AUTO_2': 2, 'RCS_AUTO_3': 3, 'RCS_AUTO_4': 4,
+                     'RCS_AUTO_6': 6, 'RCS_AUTO_7': 7, 'RCS_AUTO_8': 8, 'RCS_AUTO_9': 9}

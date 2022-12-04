@@ -1,4 +1,7 @@
-from scapy import utils as scu
+#from scapy.utils import PcapReader
+from scapy.utils import RawPcapReader
+from scapy.layers.l2 import Ether
+from scapy.layers.inet import IP, UDP
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,6 +17,7 @@ BLOB_HISTORY_MAX = 0
 GUARD_ZONES = 0
 ## NOTE: most of this information is from the froject openCPN radar plugin. LINK: https://github.com/opencpn-radar-pi/radar_pi
 
+SOURCE_IP = '172.16.2.0'
 
 class DisplayRadar:
     def __init__(self, steps):
@@ -243,9 +247,9 @@ class XHDData:
 
     def update(self, packet):
         ## TODO: convert to struct with scapy
-        self.packet_length = packet.wirelen
+        self.packet_length = packet.len
         self.time = packet.time
-        self.raw_packet_load = packet.load
+        self.raw_packet_load = packet.original
         self.packet_type = self.form_byte(0, 3)  # const
         self.scan_length = self.form_byte(10, 11)  # const
         self.spoke_index = self.form_byte(12, 13) // 8  # so the structure is: 1440 spokes per revolution, each spoke matches 1/4 degree, the input int is divided by 8 to give spoke index
@@ -278,21 +282,35 @@ def create_ticks(range):
 
 if __name__ == "__main__":
     print("Dir:", os.getcwd())
-    pkts = scu.rdpcap("logs/garmin_xhd.pcap")
-    plen = len(pkts)
-    print("Packets:", plen)
+    #log_path = "logs/garmin_xhd.pcap"
+    log_path = "logs/garmin_xhd.pcap"
+    # pkts = scu.rdpcap()
+    #plen = len(pkts)
+    #print("Packets:", plen)
     xhd_D = XHDData()
     M = 5000
     cpi = 0 # correct packet index
     #A = np.zeros(plen)
     packet_length = 731
     dr = DisplayRadar(packet_length)
+    i = 0
+    for (pkt_data, pkt_metadata,) in RawPcapReader(log_path):
+        ether_pkt = Ether(pkt_data)
+        good_packet = False
+        if 'type' in ether_pkt.fields:
+            if ether_pkt.type == 0x0800:
+                ip_pkt = ether_pkt[IP]
+                if ip_pkt.proto == 17:
+                    if ip_pkt.src == SOURCE_IP:
+                        udp_pkt = ether_pkt[UDP]
+                        if udp_pkt.len >= 100:
+                            good_packet = True
 
-    for i, pkt in enumerate(pkts):
-        if i >= M:
-            print(i)
-            break
-        if pkt.wirelen >= 505:  ## TODO: check type!
+        if not good_packet:
+            continue
+
+        if good_packet:  ## TODO: check type!
+            pkt = ether_pkt
             #print("Length:", pkt.wirelen)
             xhd_D.update(pkt)
             if xhd_D.range_meters:
