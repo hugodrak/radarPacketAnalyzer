@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import math
 import logging
 from datetime import datetime
+from matplotlib.animation import FFMpegWriter
 ## Garmin xHD has 1440 spokes of varying 519 - 705 bytes each
 #define GARMIN_XHD_SPOKES 1440
 #define GARMIN_XHD_MAX_SPOKE_LEN 705
@@ -294,52 +295,58 @@ if __name__ == "__main__":
     packet_length = 731
     dr = DisplayRadar(packet_length)
     i = 0
-    for (pkt_data, pkt_metadata,) in RawPcapReader(log_path):
-        ether_pkt = Ether(pkt_data)
-        good_packet = False
-        if 'type' in ether_pkt.fields:
-            if ether_pkt.type == 0x0800:
-                ip_pkt = ether_pkt[IP]
-                if ip_pkt.proto == 17:
-                    if ip_pkt.src == SOURCE_IP:
-                        udp_pkt = ether_pkt[UDP]
-                        if udp_pkt.len >= 100:
-                            good_packet = True
+    metadata = dict(title='Movie Test', artist='Matplotlib',
+                comment='Movie support!')
+    writer = FFMpegWriter(fps=15, metadata=metadata)
+    fig = plt.figure()
+    with writer.saving(fig, "writer_test.mp4", 100):
+        for (pkt_data, pkt_metadata,) in RawPcapReader(log_path):
+            ether_pkt = Ether(pkt_data)
+            good_packet = False
+            if 'type' in ether_pkt.fields:
+                if ether_pkt.type == 0x0800:
+                    ip_pkt = ether_pkt[IP]
+                    if ip_pkt.proto == 17:
+                        if ip_pkt.src == SOURCE_IP:
+                            udp_pkt = ether_pkt[UDP]
+                            if udp_pkt.len >= 100:
+                                good_packet = True
 
-        if not good_packet:
-            continue
+            if not good_packet:
+                continue
 
-        if good_packet:  ## TODO: check type!
-            pkt = ether_pkt
-            #print("Length:", pkt.wirelen)
-            xhd_D.update(pkt)
-            if xhd_D.range_meters:
-                (xi, xs), (yi, ys) = create_ticks(xhd_D.range_meters)
-            if cpi % 1400 == 0:
-                dr.add_spokes(xhd_D.spokes)
-                plt.imshow(dr.grid, cmap='plasma', interpolation='nearest')  # cmap hot plasma
+            if good_packet:  ## TODO: check type!
+                pkt = ether_pkt
+                #print("Length:", pkt.wirelen)
+                xhd_D.update(pkt)
+                if xhd_D.range_meters:
+                    (xi, xs), (yi, ys) = create_ticks(xhd_D.range_meters)
+                if cpi % 1400 == 0:
+                    dr.add_spokes(xhd_D.spokes)
+                    plt.imshow(dr.grid, cmap='plasma', interpolation='nearest')  # cmap hot plasma
 
-                plt.xticks(xi, xs)
-                plt.yticks(yi, ys)
+                    plt.xticks(xi, xs)
+                    plt.yticks(yi, ys)
 
-                # adding vertical line in data co-ordinates
-                plt.axvline(x=packet_length, alpha=0.3, c='white', ls='-')
+                    # adding vertical line in data co-ordinates
+                    plt.axvline(x=packet_length, alpha=0.3, c='white', ls='-')
 
-                # adding horizontal line in data co-ordinates
-                plt.axhline(y=packet_length, alpha=0.3, c='white', ls='-')
+                    # adding horizontal line in data co-ordinates
+                    plt.axhline(y=packet_length, alpha=0.3, c='white', ls='-')
 
-                plt.suptitle(f"Radar detections time: {datetime.utcfromtimestamp(int(xhd_D.time)).strftime('%Y-%m-%d %H:%M:%S')}")
-                plt.ylabel('AFT <--      (meters)   --> STERN')
-                plt.xlabel('PORT <--       (meters) --> STARBOARD')
-                plt.savefig(f'images/radar_{cpi}.png')
-                print(f"created map for cpi {cpi}")
+                    plt.suptitle(f"Radar detections time: {datetime.utcfromtimestamp(int(xhd_D.time)).strftime('%Y-%m-%d %H:%M:%S')}")
+                    plt.ylabel('AFT <--      (meters)   --> STERN')
+                    plt.xlabel('PORT <--       (meters) --> STARBOARD')
+                    writer.grab_frame()
+                    #plt.savefig(f'images/radar_{cpi}.png')
+                    print(f"created map for cpi {cpi}")
 
 
-            #xhd_D.print_stat()
-            #Y[cpi] = math.cos(xhd_D.angle*(math.pi/180))
-            #A[cpi] = xhd_D.angle
-            cpi += 1
-        dr.range = xhd_D.range_meters
+                #xhd_D.print_stat()
+                #Y[cpi] = math.cos(xhd_D.angle*(math.pi/180))
+                #A[cpi] = xhd_D.angle
+                cpi += 1
+            dr.range = xhd_D.range_meters
 
 
 
