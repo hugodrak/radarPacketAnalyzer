@@ -18,7 +18,8 @@ BLOB_HISTORY_MAX = 0
 GUARD_ZONES = 0
 ## NOTE: most of this information is from the froject openCPN radar plugin. LINK: https://github.com/opencpn-radar-pi/radar_pi
 
-SOURCE_IP = '172.16.2.0'
+#SOURCE_IP = '172.16.2.0'
+SOURCE_IP = '192.168.8.137'
 
 class DisplayRadar:
     def __init__(self, steps):
