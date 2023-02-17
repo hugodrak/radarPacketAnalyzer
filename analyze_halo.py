@@ -33,7 +33,6 @@ def form_hex(data):
         # f"{form_byte(velodata, i, i):02x}"
         out = []
         out.extend([f"{x:02x}" for x in data[i:i+8]])
-        out.append("  ")
         out.extend([f"{x:02x}" for x in data[i+8:i+16]])
         print(" ".join(out))
 
@@ -66,11 +65,13 @@ def process_packet(data):
         print(" ".join(out))
     print(sc)
 
+
 UDP_IP = "localhost"
 UDP_PORT = 2368
 SOURCE_IP = '192.168.1.120'  # check correct
 MIN_LEN = 1400
 spokes_per_packet = 32
+
 
 def parse(fname):
     lasttime = -1
@@ -111,7 +112,9 @@ def parse(fname):
 
                                 data.extend(velodata)
                     elif len(data) > 0:
+                        #form_hex(data)
                         process_packet(data)
+
                         data = bytearray()
 
 
@@ -125,6 +128,7 @@ def parse(fname):
             # print('[%d] [%s] sending %d-byte message'%(i,`ts`,len(velodata)))
             # sock.sendto(velodata, (UDP_IP, UDP_PORT))
             # i += 1
+
 
 if __name__ == '__main__':
     log_path = "eenx_logs/goodlog2.pcap"

@@ -25,7 +25,7 @@ class RadarInfo:
         self.m_threshold_red = 200
         self.m_doppler_count = 0
 
-        self.m_history = [] # (line, time, pos)
+        self.m_history = [[[0]*512,0, 0]]*4096 # (line, time, pos)
 
     def process_radar_spokes(self, angle, bearing, line_data, length, range_meters, time_rec):
         self.sample_course(angle)
