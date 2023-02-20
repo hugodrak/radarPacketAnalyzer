@@ -1,15 +1,25 @@
 COURSE_SAMPLES = 16
 BLOB_HISTORY_MAX = 0
 import numpy as np
+import math
+
+class RadarHistory:
+    line = [0]*512
+    time = 0.0
+    pos = 0
+
+    def __repr__(self):
+        return f"([{'NULL' if sum(self.line) == 0 else '>0'}],{int(self.time)}, {self.pos})"
+
 
 class RadarInfo:
-    def __init__(self):
+    def __init__(self, spokes):
         self.m_main_bang_size = 0
         self.m_threshold = 0
         self.m_radar_timeout = 0
         self.m_data_timeout = 0
         self.m_state = "RADAR_OFF"
-        self.m_spokes = 0
+        self.m_spokes = spokes
         self.m_missing_spokes = 0
         self.m_range = 0
         self.m_range_adjustment = 0
@@ -24,8 +34,11 @@ class RadarInfo:
         self.m_rotation_period = 0
         self.m_threshold_red = 200
         self.m_doppler_count = 0
+        self.m_doppler = 0  # int
 
-        self.m_history = [[[0]*512,0, 0]]*4096 # (line, time, pos)
+        self.m_history = []#[[[0]*512, 0, 0]]*self.m_spokes  # (line, time, pos)
+        for i in range(self.m_spokes):
+            self.m_history.append(RadarHistory())
 
     def process_radar_spokes(self, angle, bearing, line_data, length, range_meters, time_rec):
         self.sample_course(angle)
@@ -33,22 +46,22 @@ class RadarInfo:
         if range_meters == 0:
             raise ValueError("Error process_radar_spokes range is zero")  # logging
 
-        for i in range(self.m_main_bang_size):
-            line_data[i] = 0
+        # for i in range(self.m_main_bang_size):
+        #     line_data[i] = 0
 
-        thresh = self.m_threshold
-        if thresh > 0:
-            thresh *= (255 - BLOB_HISTORY_MAX) / 100 + BLOB_HISTORY_MAX
-            for i in range(length):
-                if line_data[i] < thresh:
-                    line_data[i] = 0
+        # thresh = self.m_threshold
+        # if thresh > 0:
+        #     thresh *= (255 - BLOB_HISTORY_MAX) / 100 + BLOB_HISTORY_MAX
+        #     for i in range(length):
+        #         if line_data[i] < thresh:
+        #             line_data[i] = 0
 
         ppm = (length / range_meters) * (1. - self.m_range_adjustment * 0.001)
 
         if self.m_pixels_per_meter != ppm:
-            print(f"Detected spoke change rate from {self.m_pixels_per_meter} to {ppm} pixels/m, {range_meters}")
+            print(f"Detected spoke change rate from {self.m_pixels_per_meter} to {ppm} pixels/m, Range: {range_meters} m")
             self.m_pixels_per_meter = ppm
-            self.m_history = []
+            #self.m_history = []  # TODO: Why?
 
         #orientation = 0 # implement self.get_orientation() 0=North
         ## -------- Start processing ---------
@@ -105,3 +118,21 @@ class RadarInfo:
                 self.m_rotation_period = int(delta)
             self.m_last_rotation_time = time_rec
         self.m_last_angle = angle
+
+    def to_plotter(self):
+        xc, yc = 512, 512
+        mat = np.zeros((1024+1, 1024+1), dtype=np.uint8)
+        for i in range(len(self.m_history)):
+            a = round((i/self.m_spokes)*2*math.pi)
+            for h, bang in enumerate(self.m_history[i].line):
+                m = h*math.sin(a)
+                n = h*math.cos(a)
+                x = round(xc+m)
+                y = round(yc+n)
+                if bang > 100 or type(bang) != int or type(x) != int or type(y) != int:
+                    h=0
+
+                mat[y][x] = bang
+        print(np.sum(mat))
+
+        return mat
