@@ -4,7 +4,7 @@ from src.plotter import Plotter
 import dpkt
 import math
 import logging
-from src.tools import good_hex
+from src.tools import good_hex, debug_mat
 
 SPOKES = 4096
 NAVICO_SPOKES_RAW = 4096
@@ -50,24 +50,33 @@ def heading_valid(raw):
     return (raw & ~(HEADING_TRUE_FLAG | HEADING_MASK)) == 0
 
 
+class CSVexporter:
+    def __init__(self, path):
+        self.path = path
+        self.file = open(path, "w")
+        # TODO: add checksum
+        self.headers = ["time", "bearing", "spoke_index", "range", "lat", "long"] + [str(i) for i in range(512)]
+        self.file.write(",".join(self.headers)+"\n")
+
+    def add_line(self, time, bearing, spoke_index, range, lat, long, spoke):
+        out = [round(time, 6), int(bearing), int(spoke_index), int(range), round(lat, 8), round(long, 8)] + [str(s) for s in spoke]
+        if len(out) != 512 + 6:
+            raise ValueError("Length for csv line not correct")
+        self.file.write(",".join([str(o) for o in out]) + "\n")
+
+
 class NavicoFrame:
     def __init__(self, fid):
         self.id = fid
         self.raw_data = bytearray()
         self.data = []  # (header, spoke)
-        self._prev_header = None
+        self.valid = False
+        self.complete = False
+        self.times = []
 
-    def add_main(self, data):
+    def add_main(self, data, ts):
+        self.times.append(ts)
         self.raw_data.extend(data)
-        # for di in range(0, len(data), 536):
-        #     d = data[di:di + 536]
-        #     header_len = form_byte(d, 0)
-        #     h = d[:header_len]  # header
-        #     if not (h[-1] == 0x80 or h[-1] == 0xa0):
-        #         logging.warning(f"Frame {self.id} contains non correct header, skipping")
-        #         continue
-        #     hits = d[header_len:]
-        #     self.data.append([h, hits])
 
     def add_buffer(self, buff_data):
         # need to check offset
@@ -75,7 +84,9 @@ class NavicoFrame:
         #     self.raw_data[offset:offset+len(raw_data)] = raw_data
         #
         # h=0
-        for raw_data in buff_data:
+
+        for ts, raw_data in buff_data:
+            self.times.extend([ts]*3)
             self.raw_data.extend(raw_data)
 
 
@@ -88,13 +99,36 @@ class NavicoFrame:
         #
         for di in range(0, len(self.raw_data), 536):
             d = self.raw_data[di:di + 536]
-            header_len = form_byte(d, 0)
+            if len(d) != 536:
+                logging.warning(f"Frame with Id: {self.id} is non-complete, skipping")
+                continue
+            header_len = d[0]
+            if header_len != 24:
+                logging.warning(f"Frame with Id: {self.id} has non-complete HEADER, skipping")
+                continue
+            header_status = d[1]
+
             h = d[:header_len]  # header
-            if not (h[-1] == 0x80 or h[-1] == 0xa0):
-                logging.warning(f"Frame {self.id} contains non correct header, skipping")
+            header_ending = h[-1]
+            # validation for status, header and packet len
+            if not (header_ending == 0x80 or header_ending == 0xa0):
+                logging.warning(f"Frame with Id: {self.id} contains non correct header-ENDING ({hex(header_ending)}), skipping")
+                continue
+            if not (header_status == 0x02 or header_status == 0x12):
+                logging.warning(f"Frame with Id: {self.id} has non correct STATUS, skipping")
                 continue
             hits = d[header_len:]
-            self.data.append([h, hits])
+            if len(hits) != 512:
+                logging.warning(f"Frame with Id: {self.id} has non-complete spokes, skipping")
+                continue
+
+            ts_good = self.times[di//536]
+            self.data.append([ts_good, h, hits])
+            if not self.valid:
+                self.valid = True
+
+        if len(self.data) == 32:
+            self.complete = True
 
     def total(self):
         for header, spoke in self.data:
@@ -102,19 +136,6 @@ class NavicoFrame:
             self.raw_data.extend(spoke)
 
         print(good_hex(self.raw_data))
-
-    def frame_complete(self):
-        good = True
-        if len(self.data) != 32:
-            good = False
-        for heading, spoke in self.data:
-            if len(heading) != 24:
-                good = False
-            if len(spoke) != 512:
-                good = False
-
-        return good
-
 
 
 class NavicoData:
@@ -146,6 +167,10 @@ class NavicoData:
         self.spokes = [0]*4096
         self.lookup_data = [[0]*256]*6  # TODO: continue here
         self.initialize_lookup_data()
+        self.csv = None
+
+    def setup_csv(self, path):
+        self.csv = CSVexporter(path)
 
     def initialize_lookup_data(self):
         if self.lookup_data[2][255] == 0:
@@ -181,31 +206,44 @@ class NavicoData:
                         self.lookup_data[LOOKUP_SPOKE["HIGH_APPROACHING"]][j] = high
 
     def add_spoke(self):
+        if not self.ri.m_first_found:
+            self.ri.m_first_found = True
         spoke = self.spoke_index
-        self.ri.m_spokes += 1
-        if self.next_spoke >= 0 and spoke != self.next_spoke:
-            if spoke > self.next_spoke:
-                self.ri.m_missing_spokes += spoke - self.next_spoke
-            else:
-                self.ri.m_missing_spokes += SPOKES + spoke - self.next_spoke
+        # self.ri.m_spokes += 1  # really?
+        # if self.next_spoke >= 0 and spoke != self.next_spoke:
+        #     if spoke > self.next_spoke:
+        #         self.ri.m_missing_spokes += spoke - self.next_spoke
+        #     else:
+        #         self.ri.m_missing_spokes += SPOKES + spoke - self.next_spoke
+        #
+        # self.next_spoke = (spoke + 1) % SPOKES
+        # Guess the heading for the spoke. This is updated much less frequently than the
+        # data from the radar (which is accurate 10x per second), likely once per second.
+        # Placeholder for not having heading right now:
 
-        self.next_spoke = (spoke + 1) % SPOKES
         self.bearing_raw = self.heading_raw + self.angle_raw
-        a = mod_spokes(self.angle_raw//2)
-        b = mod_spokes(self.bearing_raw//2)
-        #length = NAVICO_SPOKE_LEN
+        if self.bearing_raw > 4096:
+            raise ValueError("Erroneous angle or heading! Aborting")
+        # until here all is based on 4096 (NAVICO_SPOKES_RAW) scanlines
+        a = mod_spokes(self.angle_raw//2)    # divide by 2 to map on 2048 scanlines
+        b = mod_spokes(self.bearing_raw//2)  # divide by 2 to map on 2048 scanlines
+
+        # length = NAVICO_SPOKE_LEN
         # data_highres = [0]*NAVICO_SPOKE_LEN
         # doppler = self.ri.m_doppler
         # # doppler filter
         # if doppler < 0 or doppler > 2:
         #     doppler = 0
         #
-        # lookup_low = self.lookup_data[LOOKUP_SPOKE["LOW_NORMAL"] + doppler]
-        # lookup_high = self.lookup_data[LOOKUP_SPOKE["HIGH_NORMAL"] + doppler]
+        # lookup_low = self.lookup_data[0 + doppler]
+        # lookup_high = self.lookup_data[3 + doppler]
+        # # this build the high res data spoke, which essentially takes each line from 512 bytes to 1024
+        # # however this just looks like upscaling, investigate.
         # for i in range(NAVICO_SPOKE_LEN//2):
         #     data_highres[2*i] = lookup_low[self.line_data[i]]  # What does this do?
         #     data_highres[2*i+1] = lookup_high[self.line_data[i]]
-
+        if self.csv:
+            self.csv.add_line(self.time, b, spoke, self.range_meters, 0.0, 0.0, self.line_data)
         self.ri.process_radar_spokes(a, b, self.line_data, 512, self.range_meters, self.time)
 
     def update(self, ts, header, spoke):
@@ -232,16 +270,18 @@ class NavicoData:
         self.packet_length = len(spoke)
 
         self.spoke_index = form_byte(header, 2, 3)  # scan num
+        #if self.spoke_index < 500:
+
         self.angle_raw = form_byte(header, 8, 9)
         self.angle_deg = float(self.angle_raw)/4094 * 360.0  # angle 0 -> 4094
         self.heading_raw = form_byte(header, 10, 11)
+        # TODO: check gps position
         radar_heading_valid = heading_valid(self.heading_raw)
         radar_heading_true = (self.heading_raw & HEADING_TRUE_FLAG) != 0
-        if radar_heading_valid and not ignore_radar_heading:
-            if not IS_HALO:  # TODO: check this
-                self.heading = mod_degrees_float(scale_raw_to_degrees(self.heading_raw))
-        else:
-            pass
+        if not radar_heading_valid or not radar_heading_true:
+            self.heading_raw = 0
+            # if not IS_HALO:  # TODO: check this
+            #     self.heading = mod_degrees_float(scale_raw_to_degrees(self.heading_raw))
             # TODO: get heading
 
         #self.heading = self.heading_raw/65535 * 360. #?
@@ -266,7 +306,7 @@ class NavicoData:
         print(self.angle_deg)
 
     def complete_spokes(self):
-        if self.ri.m_missing_spokes == 0:
+        if self.ri.m_first_found and self.ri.m_missing_spokes == 0:
             return True
         return False
 
@@ -274,20 +314,23 @@ class NavicoData:
         return self.ri.to_plotter()
 
 
-def main(fname):
-    plott = Plotter("Halo 24")
+def main(fname, src_addr):
+    plott = Plotter("Halo 24", "./output")
     ND = NavicoData()
     UDP_IP = "localhost"
     UDP_PORT = 2368
-    SOURCE_IP = '192.168.1.120'  # check correct
+    #SOURCE_IP = '192.168.1.120'  # check correct own
+    #SOURCE_IP = '192.168.8.137' # ranges
     MIN_LEN = 1400
     spokes_per_packet = 32
     # handle part byte packets before or after udp main packet.
-    more_fragments = 0
+    max_frames = 100
+    frame_count = 0
+    ND.setup_csv("./output/halo24_open_cpn.csv")
+
     with open(fname, "rb") as f:
         pcap = dpkt.pcap.Reader(f)
-        data = bytearray()
-        fragment_count = 0
+        # TODO: add more accurate time
         buffer = {}
         frame = None
         for ts, buf in pcap:
@@ -298,7 +341,7 @@ def main(fname):
                 h=0
                 if ip.p == dpkt.ip.IP_PROTO_UDP:
                     ip_src_str = ".".join([str(int(x)) for x in ip.src])
-                    if ip_src_str == SOURCE_IP:
+                    if ip_src_str == src_addr:
                         h=0
                         if type(ip.data) == dpkt.udp.UDP:
                             udp = ip.data
@@ -308,25 +351,32 @@ def main(fname):
                                     logging.warning(f'Frame with id {ip.id} has incorrect header! Skipping!')
                                     continue
 
-                                frame.add_main(udp.data[8:])
+                                frame.add_main(udp.data[8:], ts)
 
                         elif type(ip.data) == bytes:
                             if len(buffer.keys()) > 4:
                                 raise ValueError("Buffer overfilling!!")
                             buffer.setdefault(ip.id, [])
                             if len(ip.data) > 0:
-                                buffer[ip.id].append(ip.data)
+                                buffer[ip.id].append((ts, ip.data))
                             if len(buffer[ip.id]) == 11:
                                 frame.add_buffer(buffer[ip.id])
                                 h=0
-                                if frame.frame_complete():
+                                if frame.valid:
                                     #print(ip.id)
                                     del buffer[ip.id]
-                                    for header, spoke in frame.data:
-                                        ND.update(ts, header, spoke)
+                                    for time_good, header, spoke in frame.data:
+                                        ND.update(time_good, header, spoke)
 
-                                    #if ND.complete_spokes():# and 0 < ND.spoke_index < 100:
-                                    plott.update(ND.to_plotter())
+                                    if ND.ri.m_first_found:
+                                        plott.update(ND.to_plotter())
+
+                                    # if frame_count > max_frames:
+                                    #     break
+                                    frame_count += 1
+
+
+    plott.finish()
 
 
 
@@ -362,6 +412,9 @@ def main(fname):
                 #             plott.update(ND.to_plotter())
                 #         data = bytearray()
 
+## TODO: faster!
 
 if __name__ == "__main__":
-    main("../../eenx_logs/goodlog2.pcap")
+    main("./eenx_logs/startup_open_cpn.pcap", '192.168.1.120')
+    #main("./logs/4g-heading.pcap", '10.56.0.161')
+    #main("./logs/halo20-ranges.pcap", '192.168.8.137')
