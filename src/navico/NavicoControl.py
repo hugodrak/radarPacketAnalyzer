@@ -8,8 +8,8 @@ import socket
 import time
 import struct
 
-sock = socket.socket(socket.AF_INET,  # Internet
-		                     socket.SOCK_DGRAM)  # UDP
+# sock = socket.socket(socket.AF_INET,  # Internet
+# 		                     socket.SOCK_DGRAM)  # UDP
 
 
 def send(ip, port, msg):
@@ -61,6 +61,22 @@ def capture_01B1():
 				vars = struct.unpack(RadarReport_01B2_format, data)
 
 
+def special():
+	UDP_IP = "236.7.6.5"
+	UDP_PORT = 6878
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
+	sock.bind((UDP_IP, UDP_PORT))
+
+
+	while True:
+		sock.sendto(bytes([0x88, 0x99]), (UDP_IP, 6878))
+		data, addr = sock.recvfrom(60)
+		print(data, addr)
+		time.sleep(1)
+
+
+
+
 
 def main():
 	while True:
@@ -82,8 +98,11 @@ def main():
 			case "4":
 				send("236.6.7.10", 6680, [bytes([0x00, 0xc1, 0x01])])
 				send("236.6.7.10", 6680, [bytes([0x01, 0xc1, 0x01])])
+			case "s":
+				special()
 			case "q":
 				break
+
 
 
 if __name__ == "__main__":

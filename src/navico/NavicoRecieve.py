@@ -3,9 +3,10 @@ from src.tools import form_byte
 from src.plotter import Plotter
 import dpkt
 import math
+import time
 import logging
-from src.tools import good_hex, debug_mat
-
+#from src.tools import good_hex, debug_mat
+import os
 SPOKES = 4096
 NAVICO_SPOKES_RAW = 4096
 NAVICO_SPOKES = 2048
@@ -130,12 +131,12 @@ class NavicoFrame:
         if len(self.data) == 32:
             self.complete = True
 
-    def total(self):
-        for header, spoke in self.data:
-            self.raw_data.extend(header)
-            self.raw_data.extend(spoke)
-
-        print(good_hex(self.raw_data))
+    # def total(self):
+    #     for header, spoke in self.data:
+    #         self.raw_data.extend(header)
+    #         self.raw_data.extend(spoke)
+    #
+    #     print(good_hex(self.raw_data))
 
 
 class NavicoData:
@@ -315,7 +316,7 @@ class NavicoData:
 
 
 def main(fname, src_addr):
-    plott = Plotter("Halo 24", "./output")
+    #plott = Plotter("Halo 24", "./output")
     ND = NavicoData()
     UDP_IP = "localhost"
     UDP_PORT = 2368
@@ -324,9 +325,10 @@ def main(fname, src_addr):
     MIN_LEN = 1400
     spokes_per_packet = 32
     # handle part byte packets before or after udp main packet.
-    max_frames = 100
+    max_frames = 50
     frame_count = 0
-    ND.setup_csv("./output/halo24_open_cpn.csv")
+    csv_name = os.path.join("./output", os.path.basename(os.path.splitext(fname)[0]+".csv"))
+    #ND.setup_csv(csv_name)
 
     with open(fname, "rb") as f:
         pcap = dpkt.pcap.Reader(f)
@@ -361,22 +363,21 @@ def main(fname, src_addr):
                                 buffer[ip.id].append((ts, ip.data))
                             if len(buffer[ip.id]) == 11:
                                 frame.add_buffer(buffer[ip.id])
-                                h=0
+
                                 if frame.valid:
                                     #print(ip.id)
                                     del buffer[ip.id]
                                     for time_good, header, spoke in frame.data:
                                         ND.update(time_good, header, spoke)
+                                        frame_count += 1
 
-                                    if ND.ri.m_first_found:
-                                        plott.update(ND.to_plotter())
+                                    if frame_count > max_frames:
+                                        break
+                # if ND.ri.m_first_found and ND.spoke_index == 31:
+                #     plott.update(ND.to_plotter())
+                #     frame_count += 1
 
-                                    # if frame_count > max_frames:
-                                    #     break
-                                    frame_count += 1
-
-
-    plott.finish()
+    #plott.finish()
 
 
 
@@ -415,6 +416,9 @@ def main(fname, src_addr):
 ## TODO: faster!
 
 if __name__ == "__main__":
-    main("./eenx_logs/startup_open_cpn.pcap", '192.168.1.120')
+    t1 = time.time()
+    #main("eenx_logs/stenpiren_090323/stenpiren1.pcap", '192.168.1.120')
+    main("eenx_logs/startup_open_cpn.pcap", '192.168.1.120')
     #main("./logs/4g-heading.pcap", '10.56.0.161')
     #main("./logs/halo20-ranges.pcap", '192.168.8.137')
+    print(round((time.time()-t1)*1000, 2), "ms")

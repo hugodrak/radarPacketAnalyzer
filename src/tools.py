@@ -1,25 +1,33 @@
-import matplotlib.pyplot as plt
 import numpy as np
 
 DEGREES_PER_ROTATION = 360
 
 
-def form_byte(pkt, start, end=-1, little=True, signed=False):
+def form_byte(pkt, start, end=-1):
     if end == -1:
         end = start
     out = 0
-    shift = 0 if little else 8*(end-start)
-    try:
-        for i in range(start, end + 1):
-            out += int(pkt[i]) << shift
-            if little:
-                shift += 8
-            else:
-                shift -= 8
-        return out
-    except:
-        print("Error:", len(pkt), pkt)
-        raise ValueError(f"Index")
+    for i in range(start, end + 1):
+        out |= int(pkt[i]) << (8 * (i - start))
+    return out
+
+# def form_byte(pkt, start, end=-1, little=True, signed=False):
+#     if end == -1:
+#         end = start
+#     out = 0
+#     shift = 0 if little else 8*(end-start)
+#     try:
+#         for i in range(start, end + 1):
+#             out += int(pkt[i]) << shift
+#             if little:
+#                 shift += 8
+#             else:
+#                 shift -= 8
+#         return out
+#     except:
+#         print("Error:", len(pkt), pkt)
+#         raise ValueError(f"Index")
+
 
 
 """
@@ -105,15 +113,7 @@ def to_plotter2(spokes):
 
 
 if __name__ == "__main__":
-    spokes = np.zeros((2048, 512), dtype=np.uint8)
-    for i in range(0,2048,682):
-        spokes[i] = np.asarray([254]*512, dtype=np.uint8)
-    for i in range(0, 2048):
-        spokes[i][511] = 254
-        spokes[i][200] = 254
-    matt = to_plotter2(spokes)
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.set_title("hej")
-    ax.imshow(matt, cmap='plasma')
-    plt.show()
+    a = form_byte(bytearray(b'\x18\x02\x00\x00\x00D\x80\x00\\\x00\x00\x80X\x01\xfe\xcd\x00\x00\x00\x80\x00\x00\x00\x80'), 22)
+    b = form_byte2(bytearray(b'\x18\x02\x00\x00\x00D\x80\x00\\\x00\x00\x80X\x01\xfe\xcd\x00\x00\x00\x80\x00\x00\x00\x80'), 22)
+
+    h=0
