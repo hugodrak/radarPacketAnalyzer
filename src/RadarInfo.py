@@ -17,6 +17,20 @@ class RadarHistory:
 
 class RadarInfo:
     def __init__(self, spokes):
+        # control parameters
+        self.m_radar_status = 0
+        self.m_gain = 0
+        self.m_rain = 0
+        self.m_sea = 0
+        self.m_mode = 0
+        self.m_target_boost = 0
+        self.m_interference_rejection = 0
+        self.m_target_expansion = 0
+        self.m_range = 0
+        self.m_bearing_alignment = 0
+        self.m_antenna_height = 0
+        self.m_halo_light = 0
+
         self.m_main_bang_size = 0
         self.m_threshold = 0
         self.m_radar_timeout = 0
@@ -25,7 +39,6 @@ class RadarInfo:
         self.m_spokes = spokes
         self.m_first_found = False
         self.m_missing_spokes = 0
-        self.m_range = 0
         self.m_range_adjustment = 0
         self.m_pixels_per_meter = 0.
         self.m_arpa = 0

@@ -23,6 +23,7 @@ class NavicoControl:
 		self.addresses = NavicoInfo
 		self.m_send_address = None
 		self.stayalive_thread = threading.Thread
+		self.stop_heartbeat = False
 
 	def start(self):
 		logging.info("Start locating")
@@ -44,7 +45,7 @@ class NavicoControl:
 
 	def stayalive(self):
 		logging.info("Stayalive pounding!")
-		while True:
+		while not self.stop_heartbeat:
 			transmit_cmd(self.addresses.addrSendA, self.COMMAND_STAY_ON_A)
 			transmit_cmd(self.addresses.addrSendA, self.COMMAND_STAY_ON_B)
 			transmit_cmd(self.addresses.addrSendA, self.COMMAND_STAY_ON_C)
@@ -60,7 +61,8 @@ class NavicoControl:
 		self.stayalive_thread.start()
 
 	def stop_stayalive_thread(self):
-		self.stayalive_thread.stop()
+		self.stop_heartbeat = True
+		self.stayalive_thread.join()
 
 	def RadarTxOff(self):
 		self.transmit_cmd(self.COMMAND_TX_OFF_A)
@@ -162,26 +164,20 @@ class NavicoControl:
 		v = int(value * 1000)
 		v1 = v // 256
 		v2 = v & 255
-		if v > 255:
-			v = 255
 		cmd = bytes([0x30, 0xc1, 0x01, 0, 0, 0, v2, v1, 0, 0])
 		self.transmit_cmd(cmd)
 		logging.info(f"Antenna height set to {v} mm")
 
-	def set_halo_light(self, v):
+	def set_halo_light(self, v):  # 0, 1, 2, 3
 		cmd = bytes([0x31, 0xc1, v])
 		self.transmit_cmd(cmd)
 		logging.info(f"Halo light set to {v}")
-
-
-
-
-
 
 
 if __name__ == "__main__":
 	nc = NavicoControl()
 	nc.start()
 	time.sleep(2)
-	nc.set_halo_light(1)
+	nc.set_halo_light(3)
+	nc.set_antenna_height(2.05) #m
 	#nc.RadarTxOff()
