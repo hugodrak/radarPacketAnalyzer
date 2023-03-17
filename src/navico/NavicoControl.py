@@ -8,14 +8,14 @@ import socket
 import time
 import struct
 
-# sock = socket.socket(socket.AF_INET,  # Internet
-# 		                     socket.SOCK_DGRAM)  # UDP
+udp_sock = socket.socket(socket.AF_INET,  # Internet
+	                     socket.SOCK_DGRAM)  # UDP
 
 
 def send(ip, port, msg):
 	for message in msg:
-		print(message)
-		sock.sendto(message, (ip, port))
+		#print(message)
+		udp_sock.sendto(message, (ip, port))
 
 
 # UDP_IP = "236.6.7.5"
@@ -43,11 +43,12 @@ pkt = [bytes([0xA0, 0xC1]), bytes([0x03, 0xC2]), bytes([0x04, 0xC2]), bytes([0x0
 
 
 def capture_01B1():
-	UDP_IP = "0.0.0.0"#"236.6.7.5"
+	UDP_IP = "127.0.0.1"#"236.6.7.5"
 	UDP_PORT = 6878
 
 	# Create a UDP socket
-	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	#sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(0x0003))
+	sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.IPPROTO_UDP)
 
 	# Bind the socket to the IP address and port
 	sock.bind((UDP_IP, UDP_PORT))
@@ -76,8 +77,6 @@ def special():
 
 
 
-
-
 def main():
 	while True:
 		mode = input("Input mode: [0:monitor, 1: wakeup, 2:packets, 3:tx on, 4:tx off]")
@@ -86,8 +85,8 @@ def main():
 			case "0":
 				capture_01B1()
 			case "1":
-				#send("236.6.7.5", 6878, [bytes([0x01, 0xb1])])
-				send("127.0.0.1", 6878, [bytes([0x01, 0xb1])])
+				send("236.6.7.5", 6878, [bytes([0x01, 0xb1])])
+				#send("127.0.0.1", 6878, [bytes([0x01, 0xb1])])
 				#capture_01B1()
 			case "2":
 				send("236.6.7.13", 6680, pkt)

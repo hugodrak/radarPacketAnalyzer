@@ -180,6 +180,8 @@ class RadarInfo:
         y2 = np.round(512 - y).astype(int)
 
         matrix[y2.flatten(), x2.flatten()] = self.m_history_bangs.ravel()
-        print(f"MAT for t={self.last_timestamp}, td={round((time.time()-t1)*1000, 4)}")
+        matrix = matrix.astype(np.float32)
+        matrix /= 255
+        #print(f"MAT for t={self.last_timestamp}, td={round((time.time()-t1)*1000, 4)}")
         return matrix
 

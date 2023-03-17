@@ -5,6 +5,7 @@ import dpkt
 import math
 import time
 import logging
+from datetime import datetime
 #from src.tools import good_hex, debug_mat
 import os
 SPOKES = 4096
@@ -316,7 +317,7 @@ class NavicoData:
 
 
 def main(fname, src_addr):
-    #plott = Plotter("Halo 24", "./output")
+    plott = Plotter("Halo 24", "./output")
     ND = NavicoData()
     UDP_IP = "localhost"
     UDP_PORT = 2368
@@ -329,55 +330,62 @@ def main(fname, src_addr):
     frame_count = 0
     csv_name = os.path.join("./output", os.path.basename(os.path.splitext(fname)[0]+".csv"))
     #ND.setup_csv(csv_name)
-
+    epoch_start = datetime.strptime('2023-3-9 14:48:00', '%Y-%m-%d %H:%M:%S').timestamp()   # 1678369740
+    epoch_end = datetime.strptime('2023-3-9 14:50:00', '%Y-%m-%d %H:%M:%S').timestamp()  # 9-03-23_13:49:0
     with open(fname, "rb") as f:
         pcap = dpkt.pcap.Reader(f)
         # TODO: add more accurate time
         buffer = {}
         frame = None
         for ts, buf in pcap:
-            eth = dpkt.ethernet.Ethernet(buf)
-            if eth.type == dpkt.ethernet.ETH_TYPE_IP:
-                ip = eth.data
-                # TODO: check id match
-                h=0
-                if ip.p == dpkt.ip.IP_PROTO_UDP:
-                    ip_src_str = ".".join([str(int(x)) for x in ip.src])
-                    if ip_src_str == src_addr:
-                        h=0
-                        if type(ip.data) == dpkt.udp.UDP:
-                            udp = ip.data
-                            if len(udp.data) > MIN_LEN:
-                                frame = NavicoFrame(ip.id)
-                                if udp.data[:8] != CORRECT_HEADER:
-                                    logging.warning(f'Frame with id {ip.id} has incorrect header! Skipping!')
-                                    continue
+            if epoch_start < ts < epoch_end:
+                eth = dpkt.ethernet.Ethernet(buf)
+                if eth.type == dpkt.ethernet.ETH_TYPE_IP:
+                    ip = eth.data
+                    # TODO: check id match
+                    h=0
+                    if ip.p == dpkt.ip.IP_PROTO_UDP:
+                        ip_src_str = ".".join([str(int(x)) for x in ip.src])
+                        if ip_src_str == src_addr:
+                            h=0
+                            if type(ip.data) == dpkt.udp.UDP:
+                                udp = ip.data
+                                if len(udp.data) > MIN_LEN:
+                                    frame = NavicoFrame(ip.id)
+                                    if udp.data[:8] != CORRECT_HEADER:
+                                        logging.warning(f'Frame with id {ip.id} has incorrect header! Skipping!')
+                                        continue
 
-                                frame.add_main(udp.data[8:], ts)
+                                    frame.add_main(udp.data[8:], ts)
 
-                        elif type(ip.data) == bytes:
-                            if len(buffer.keys()) > 4:
-                                raise ValueError("Buffer overfilling!!")
-                            buffer.setdefault(ip.id, [])
-                            if len(ip.data) > 0:
-                                buffer[ip.id].append((ts, ip.data))
-                            if len(buffer[ip.id]) == 11:
-                                frame.add_buffer(buffer[ip.id])
+                            elif type(ip.data) == bytes:
+                                if len(buffer.keys()) > 4:
+                                    raise ValueError("Buffer overfilling!!")
+                                buffer.setdefault(ip.id, [])
+                                if len(ip.data) > 0:
+                                    buffer[ip.id].append((ts, ip.data))
+                                if len(buffer[ip.id]) == 11:
+                                    #print(ND.spoke_index)
+                                    frame.add_buffer(buffer[ip.id])
 
-                                if frame.valid:
-                                    #print(ip.id)
-                                    del buffer[ip.id]
-                                    for time_good, header, spoke in frame.data:
-                                        ND.update(time_good, header, spoke)
-                                        frame_count += 1
+                                    if frame.valid:
+                                        #print(ip.id)
+                                        del buffer[ip.id]
+                                        for time_good, header, spoke in frame.data:
+                                            ND.update(time_good, header, spoke)
+                                            #frame_count += 1
 
-                                    if frame_count > max_frames:
-                                        break
-                # if ND.ri.m_first_found and ND.spoke_index == 31:
-                #     plott.update(ND.to_plotter())
-                #     frame_count += 1
+                                        # if frame_count > max_frames:
+                                        #     break
+                if ND.ri.m_first_found and ND.spoke_index == 14:
+                    #t3 = time.time()
+                    plot_mat = ND.to_plotter()
+                    #t4 = time.time()
+                    plott.update(plot_mat, ts)
+                    #print(f"time mat: {round((t4 - t3)*1000)}ms, plott: {round((time.time() - t4)*1000)}ms")
+                    #frame_count += 1
 
-    #plott.finish()
+    plott.finish()
 
 
 
@@ -414,11 +422,10 @@ def main(fname, src_addr):
                 #         data = bytearray()
 
 ## TODO: faster!
-
 if __name__ == "__main__":
     t1 = time.time()
-    #main("eenx_logs/stenpiren_090323/stenpiren1.pcap", '192.168.1.120')
-    main("eenx_logs/startup_open_cpn.pcap", '192.168.1.120')
+    main("eenx_logs/stenpiren_090323/stenpiren2.pcap", '192.168.1.120')
+    #main("eenx_logs/startup_open_cpn.pcap", '192.168.1.120')
     #main("./logs/4g-heading.pcap", '10.56.0.161')
     #main("./logs/halo20-ranges.pcap", '192.168.8.137')
     print(round((time.time()-t1)*1000, 2), "ms")
