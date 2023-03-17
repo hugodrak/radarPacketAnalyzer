@@ -1,108 +1,187 @@
-
-"""
-Located radar IP 192.168.1.120 port 1, interface 192.168.1.187 [128773463/236.6.7.8:6678/236.6.7.9:6679/236.6.7.10:6680]
-
-
-"""
-import socket
 import time
-import struct
 
-udp_sock = socket.socket(socket.AF_INET,  # Internet
-	                     socket.SOCK_DGRAM)  # UDP
+from src.navico.NavicoLocate import NavicoLocate, NavicoInfo
+from src.tools import transmit_cmd
+import threading
+import logging
 
-
-def send(ip, port, msg):
-	for message in msg:
-		#print(message)
-		udp_sock.sendto(message, (ip, port))
+logging.getLogger().setLevel(logging.INFO)
 
 
-# UDP_IP = "236.6.7.5"
-# #UDP_IP = "192.168.1.120"
-# #UDP_IP = "169.254.100.255"
-#
-# UDP_PORT = 6878
-# MESSAGE = b"Hello, World!"
-#
-# pkt = [bytes([0xA0, 0xC1]), bytes([0x03, 0xC2]), bytes([0x04, 0xC2]), bytes([0x05, 0xC2])]
-# #messages = [bytes([0x01, 0xb1])]
-# #message.extend(len(message))
-# # works
-# send("236.6.7.4", 6878, [bytes([0x01, 0xb1])])
-# time.sleep(10)
-# send("236.6.7.13", 6680, pkt)
-# send("236.6.7.14", 6002, pkt)
+class NavicoControl:
+	COMMAND_TX_OFF_A  = b'\x00\xc1\x01'
+	COMMAND_TX_OFF_B  = b'\x01\xc1\x00'
+	COMMAND_TX_ON_A   = b'\x00\xc1\x01'
+	COMMAND_TX_ON_B   = b'\x01\xc1\x01'
+	COMMAND_STAY_ON_A = b'\xA0\xc1'
+	COMMAND_STAY_ON_B = b'\x03\xc2'
+	COMMAND_STAY_ON_C = b'\x04\xc2'
+	COMMAND_STAY_ON_D = b'\x05\xc2'
+
+	def __init__(self):
+		self.nLocate = NavicoLocate()
+		self.addresses = NavicoInfo
+		self.m_send_address = None
+		self.stayalive_thread = threading.Thread
+
+	def start(self):
+		logging.info("Start locating")
+		self.nLocate.locate()
+		if self.nLocate.addr_acquired:
+			logging.info("Addresses acquired")
+			self.addresses = self.nLocate.nInfo
+			#print(self.addresses.__dict__)
+			self.m_send_address = self.addresses.addrSendB  # might be B
+			logging.info(f"Located radar on {self.m_send_address}")
+			if self.m_send_address:
+				self.start_stayalive_thread()
+
+	def stop(self):
+		self.stop_stayalive_thread()
+
+	def transmit_cmd(self, msg):
+		transmit_cmd(self.m_send_address, msg)
+
+	def stayalive(self):
+		logging.info("Stayalive pounding!")
+		while True:
+			transmit_cmd(self.addresses.addrSendA, self.COMMAND_STAY_ON_A)
+			transmit_cmd(self.addresses.addrSendA, self.COMMAND_STAY_ON_B)
+			transmit_cmd(self.addresses.addrSendA, self.COMMAND_STAY_ON_C)
+			transmit_cmd(self.addresses.addrSendA, self.COMMAND_STAY_ON_D)
+			transmit_cmd(self.addresses.addrSendB, self.COMMAND_STAY_ON_A)
+			transmit_cmd(self.addresses.addrSendB, self.COMMAND_STAY_ON_B)
+			transmit_cmd(self.addresses.addrSendB, self.COMMAND_STAY_ON_C)
+			transmit_cmd(self.addresses.addrSendB, self.COMMAND_STAY_ON_D)
+			time.sleep(4)
+
+	def start_stayalive_thread(self):
+		self.stayalive_thread = threading.Thread(target=self.stayalive)
+		self.stayalive_thread.start()
+
+	def stop_stayalive_thread(self):
+		self.stayalive_thread.stop()
+
+	def RadarTxOff(self):
+		self.transmit_cmd(self.COMMAND_TX_OFF_A)
+		self.transmit_cmd(self.COMMAND_TX_OFF_B)
+		logging.info("RadarTxOff sent")
+
+	def RadarTxOn(self):
+		self.transmit_cmd(self.COMMAND_TX_ON_A)
+		self.transmit_cmd(self.COMMAND_TX_ON_B)
+		logging.info("RadarTxOn sent")
+
+	def set_range(self, meters):
+		if meters >= 50 and meters <= 72704:
+			decimeters = meters * 10
+			pck = bytes([0x03,
+		                 0xc1,
+		                 (decimeters >> 0) & 0xFF,
+		                 (decimeters >> 8) & 0xFF,
+		                 (decimeters >> 16) & 0xFF,
+		                 (decimeters >> 24) & 0xFF])
+			self.transmit_cmd(pck)
+
+	def set_gain(self, value):
+		v = (value + 1) * 255 / 100
+		if v > 255:
+			v = 255
+		# TODO: implement auto on index 6
+		cmd = bytes([0x06, 0xc1, 0, 0, 0, 0, 0, 0, 0, 0, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Gain set to {v}")
+
+	# TODO: check radar type
+	def set_sea(self, value):
+		v = (value + 1) * 255 / 100
+		if v > 255:
+			v = 255
+		# TODO: implement auto on index 6
+		cmd = bytes([0x06, 0xc1, 0, 0, 0, 0, 0, 0, 0, 0, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Sea clutter set to {v}")
+
+	def set_rain(self, value):
+		v = (value + 1) * 255 / 100
+		if v > 255:
+			v = 255
+		# rain clutter is allways manual
+		cmd = bytes([0x06, 0xc1, 0x04, 0, 0, 0, 0, 0, 0, 0, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Rain clutter set to {v}")
+
+	def set_side_lobe_suppression(self, value):
+		v = (value + 1) * 255 / 100
+		if v > 255:
+			v = 255
+		cmd = bytes([0x06, 0xc1, 0x05, 0, 0, 0, 0, 0, 0, 0, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Side lobe suppression set to {v}")
+
+	# TODO: what would command 7 be?
+
+	def set_interference_rejection(self, v):
+		cmd = bytes([0x08, 0xc1, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"interference_rejection set to {v}")
+
+	def set_target_expansion(self, v):
+		cmd = bytes([0x09, 0xc1, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Target expansion set to {v}")
+
+	def set_target_boost(self, v):
+		cmd = bytes([0x0a, 0xc1, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Target boost set to {v}")
+
+	# then comes some stuff we do not need like section blanking...
+
+	def set_scan_speed(self, v):
+		cmd = bytes([0x0f, 0xc1, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Scan speed set to {v}")
+
+	def set_mode(self, v):
+		cmd = bytes([0x10, 0xc1, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Mode set to {v}")
+
+	def set_noise_rejection(self, v):
+		cmd = bytes([0x21, 0xc1, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Noice rejection set to {v}")
+
+	def set_doppler(self, v):
+		cmd = bytes([0x23, 0xc1, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Doppler set to {v}")
+
+	def set_antenna_height(self, value): # input shall be meters, radar wants mm
+		v = int(value * 1000)
+		v1 = v // 256
+		v2 = v & 255
+		if v > 255:
+			v = 255
+		cmd = bytes([0x30, 0xc1, 0x01, 0, 0, 0, v2, v1, 0, 0])
+		self.transmit_cmd(cmd)
+		logging.info(f"Antenna height set to {v} mm")
+
+	def set_halo_light(self, v):
+		cmd = bytes([0x31, 0xc1, v])
+		self.transmit_cmd(cmd)
+		logging.info(f"Halo light set to {v}")
 
 
-#---------------------
-
-RadarReport_01B2_format = "<H16s6s12s6s4s6s10s6s4s6s10s6s4s6s10s6s4s6s10s6s4s6s10s6s4s6s10s6s4s6s"
-
-pkt = [bytes([0xA0, 0xC1]), bytes([0x03, 0xC2]), bytes([0x04, 0xC2]), bytes([0x05, 0xC2])]
 
 
-def capture_01B1():
-	UDP_IP = "127.0.0.1"#"236.6.7.5"
-	UDP_PORT = 6878
-
-	# Create a UDP socket
-	#sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(0x0003))
-	sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.IPPROTO_UDP)
-
-	# Bind the socket to the IP address and port
-	sock.bind((UDP_IP, UDP_PORT))
-
-	while True:
-		data, addr = sock.recvfrom(60) # buffer size is 1024 bytes
-		print("received message: %s" % data)
-		if len(data) > 200:
-			if data[0] == 0x01 and data[1] == 0xB2:
-				print("received message: %s" % data)
-				vars = struct.unpack(RadarReport_01B2_format, data)
-
-
-def special():
-	UDP_IP = "236.7.6.5"
-	UDP_PORT = 6878
-	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
-	sock.bind((UDP_IP, UDP_PORT))
-
-
-	while True:
-		sock.sendto(bytes([0x88, 0x99]), (UDP_IP, 6878))
-		data, addr = sock.recvfrom(60)
-		print(data, addr)
-		time.sleep(1)
-
-
-
-def main():
-	while True:
-		mode = input("Input mode: [0:monitor, 1: wakeup, 2:packets, 3:tx on, 4:tx off]")
-
-		match mode:
-			case "0":
-				capture_01B1()
-			case "1":
-				send("236.6.7.5", 6878, [bytes([0x01, 0xb1])])
-				#send("127.0.0.1", 6878, [bytes([0x01, 0xb1])])
-				#capture_01B1()
-			case "2":
-				send("236.6.7.13", 6680, pkt)
-				send("236.6.7.14", 6002, pkt)
-			case "3":
-				send("236.6.7.10", 6680, [bytes([0x00, 0xc1, 0x01])])
-				send("236.6.7.10", 6680, [bytes([0x01, 0xc1, 0x01])])
-			case "4":
-				send("236.6.7.10", 6680, [bytes([0x00, 0xc1, 0x01])])
-				send("236.6.7.10", 6680, [bytes([0x01, 0xc1, 0x01])])
-			case "s":
-				special()
-			case "q":
-				break
 
 
 
 if __name__ == "__main__":
-	main()
+	nc = NavicoControl()
+	nc.start()
+	time.sleep(2)
+	nc.set_halo_light(1)
+	#nc.RadarTxOff()

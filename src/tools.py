@@ -1,7 +1,8 @@
 import numpy as np
+import socket
 
 DEGREES_PER_ROTATION = 360
-
+UDP_SOCK = None
 
 def form_byte(pkt, start, end=-1):
     if end == -1:
@@ -57,6 +58,31 @@ def good_hex(data):
             o.append(row[j:j+2])
         rows.append(" ".join(o))
     return "\n".join(rows)
+
+
+class NetworkAddr:
+    def __init__(self, addr, port):
+        self.addr = addr
+        self.port = port
+
+    def __repr__(self):
+        return f"{self.addr}:{self.port}"
+
+
+def transmit_cmd(addr, msg):
+    global UDP_SOCK
+    if not UDP_SOCK:
+        UDP_SOCK = socket.socket(socket.AF_INET,  # Internet
+                                 socket.SOCK_DGRAM)  # UDP
+
+    UDP_SOCK.sendto(msg, (addr.addr, addr.port))
+
+
+
+
+
+def packet_addr(data):
+   return NetworkAddr(".".join([str(x) for x in data[:-2]]), (data[-2] << 8 | data[-1]))
 
 
 def debug_mat(mat):
