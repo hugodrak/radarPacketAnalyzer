@@ -11,7 +11,6 @@ import time
 import queue
 
 from scapy.all import sniff, UDP, Ether, IP, get_if_list
-print(os.getcwd())
 import logging
 
 logging.getLogger().setLevel(logging.INFO)
@@ -92,8 +91,9 @@ class NavicoReceive:
             elif report_len == 21 and report[0] == 0x08: # length 21, 08 C4 contains Doppler data in extra 3 bytes
                 logging.info("21 08 c4")
                 s = get_vars(self.RadarReport_08C4_21, report)
-                self.ri.m_doppler_state = s[18]
-                self.ri.m_doppler_speed = s[19]
+                self.ri.m_doppler_state = s[17]
+                self.ri.m_doppler_speed = s[18]
+                logging.info(f"radar doppler message. State: {self.ri.m_doppler_state}, Speed: {self.ri.m_doppler_speed}")
 
             elif report_len == 18 and report[0] == 0x08: #length 18, 08 C4 contains scan speed, noise rejection and target_separation and sidelobe suppression
                 logging.info("18 08 c4")

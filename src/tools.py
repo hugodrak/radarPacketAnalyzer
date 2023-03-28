@@ -4,6 +4,7 @@ import socket
 DEGREES_PER_ROTATION = 360
 UDP_SOCK = None
 
+
 def form_byte(pkt, start, end=-1):
     if end == -1:
         end = start
@@ -76,9 +77,6 @@ def transmit_cmd(addr, msg):
                                  socket.SOCK_DGRAM)  # UDP
 
     UDP_SOCK.sendto(msg, (addr.addr, addr.port))
-
-
-
 
 
 def packet_addr(data):

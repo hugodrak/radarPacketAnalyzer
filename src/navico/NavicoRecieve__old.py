@@ -425,6 +425,7 @@ def main(fname, src_addr):
 if __name__ == "__main__":
     t1 = time.time()
     main("eenx_logs/stenpiren_090323/stenpiren2.pcap", '192.168.1.120')
+    main("logs/halo_doppler_off_on.pcap", '192.168.1.120')
     #main("eenx_logs/startup_open_cpn.pcap", '192.168.1.120')
     #main("./logs/4g-heading.pcap", '10.56.0.161')
     #main("./logs/halo20-ranges.pcap", '192.168.8.137')

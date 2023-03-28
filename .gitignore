@@ -6,3 +6,5 @@ src/navico/__pycache__/*
 logs/*
 output/*
 eenx_logs/*
+send/*
+images/*
