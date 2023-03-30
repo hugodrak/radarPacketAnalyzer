@@ -2,7 +2,7 @@ import threading
 import queue
 import time
 from src.tools import transmit_cmd, packet_addr, NetworkAddr
-from scapy.all import sniff, UDP, Ether, IP, get_if_list
+from scapy.all import sniff, UDP, Ether, IP, get_if_list, rdpcap
 import struct
 
 WAKE_ADDR = NetworkAddr("236.6.7.5", 6878)
@@ -13,12 +13,12 @@ def wake_radar():
 	transmit_cmd(WAKE_ADDR, b'\x01\xb1')
 
 
-def receive_udp_packet(iface, received_queue):
+def receive_udp_packet(log, received_queue):
 	f = "udp and dst host 236.6.7.5 and dst port 6878"
 
 	found = False
 	while not found:
-		res = sniff(iface=iface, filter=f, timeout=2, count=3)
+		res = sniff(offline=log, filter=f)
 		# print(res)
 		if len(res) > 0:
 			for pkt in res:
@@ -71,27 +71,31 @@ class NavicoLocate:
 		if not self.interface in get_if_list():
 			raise ValueError(f"Interface {self.interface} not available!")
 
-	def locate(self):
+	def locate(self, log):
 		# First thing to run so that 01b2 packet can be found.
 		# Create a queue for communication between threads
 		received_queue = queue.Queue()
-		# Start the receive threadr
-		receive_thread = threading.Thread(target=receive_udp_packet, args=(self.interface, received_queue,))
-		receive_thread.daemon = True
-		receive_thread.start()
+		if receive_udp_packet(log, received_queue):
+			data = received_queue.get()
+			report = self.process_report(data)
+			self.nInfo.load(report)
+			self.addr_acquired = True
 
-		# Start the send thread
-		send_thread = threading.Thread(target=wake_radar)
-		send_thread.start()
+		# received_queue = queue.Queue()
+		# # Start the receive threadr
+		# receive_thread = threading.Thread(target=receive_udp_packet, args=(self.interface, received_queue,))
+		# receive_thread.daemon = True
+		# receive_thread.start()
+		#
+		# # Start the send thread
+		# send_thread = threading.Thread(target=wake_radar)
+		# send_thread.start()
+		#
+		# # Wait for the send thread to complete
+		#
+		# send_thread.join()
+		# receive_thread.join()
 
-		# Wait for the send thread to complete
-
-		send_thread.join()
-		receive_thread.join()
-		data = received_queue.get()
-		report = self.process_report(data)
-		self.nInfo.load(report)
-		self.addr_acquired = True
 
 
 

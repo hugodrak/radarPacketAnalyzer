@@ -51,7 +51,9 @@ class RadarInfo:
         self.m_rotation_period = 0
         self.m_threshold_red = 200
         self.m_doppler_count = 0
-        self.m_doppler = 0  # int
+        self.m_doppler_spokes = np.zeros((2048, 512), dtype=np.uint8)  # 1: approaching 2: receding
+        self.m_doppler_state = 0
+        self.m_doppler_speed = 0
         self.steps = 512
         self.last_timestamp = 0
         self.m_history_bangs = np.zeros((2048, 512), dtype=np.uint8)

@@ -1,6 +1,6 @@
 import time
 
-from src.navico.NavicoLocate import NavicoLocate, NavicoInfo
+from src.navico_playback.NavicoLocate import NavicoLocate, NavicoInfo
 from src.tools import transmit_cmd
 import threading
 import logging
@@ -26,17 +26,17 @@ class NavicoControl:
 		self.stayalive_thread = threading.Thread
 		self.stop_heartbeat = False
 
-	def start(self):
+	def start(self, log):
 		logging.info("Start locating")
-		self.nLocate.locate()
+		self.nLocate.locate(log)
 		if self.nLocate.addr_acquired:
 			logging.info("Addresses acquired")
 			self.addresses = self.nLocate.nInfo
 			#print(self.addresses.__dict__)
 			self.m_send_address = self.addresses.addrSendB  # might be B
 			logging.info(f"Located radar on {self.m_send_address}")
-			if self.m_send_address:
-				self.start_stayalive_thread()
+			# if self.m_send_address:
+			# 	self.start_stayalive_thread()
 
 	def stop(self):
 		self.stop_stayalive_thread()
