@@ -1,0 +1,66 @@
+2023-04-07 09:00:25 INFO NavicoControl - start: Start locating
+2023-04-07 09:00:25 INFO NavicoControl - start: Addresses acquired
+2023-04-07 09:00:25 INFO NavicoControl - start: Located radar on 236.6.7.14:6002
+2023-04-07 09:00:25 INFO NavicoRecieve - receive: Start receive
+2023-04-07 09:00:25 INFO NavicoRecieve - receive: {'id': 45569, 'serialno': '128773463', 'addr0': 192.168.1.120:305, 'addrDataA': 236.6.7.8:6678, 'addrSendA': 236.6.7.10:6680, 'addrReportA': 236.6.7.9:6679, 'addrDataB': 236.6.7.13:6001, 'addrSendB': 236.6.7.14:6002, 'addrReportB': 236.6.7.13:6003, 'acquired': True}
+2023-04-07 09:00:25 INFO NavicoRecieve - receive: Reading file: eenx_logs/debug_log_ranges_and_doppler.pcap
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: gain: 50.19607843137255, rain: 0.0, range: 463.0
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 50.0
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 50.0
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 50.0
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 50.0
+2023-04-07 09:00:25 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:01:03 INFO NavicoControl - start: Start locating
+2023-04-07 09:01:03 INFO NavicoControl - start: Addresses acquired
+2023-04-07 09:01:03 INFO NavicoControl - start: Located radar on 236.6.7.14:6002
+2023-04-07 09:01:03 INFO NavicoRecieve - receive: Start receive
+2023-04-07 09:01:03 INFO NavicoRecieve - receive: {'id': 45569, 'serialno': '128773463', 'addr0': 192.168.1.120:305, 'addrDataA': 236.6.7.8:6678, 'addrSendA': 236.6.7.10:6680, 'addrReportA': 236.6.7.9:6679, 'addrDataB': 236.6.7.13:6001, 'addrSendB': 236.6.7.14:6002, 'addrReportB': 236.6.7.13:6003, 'acquired': True}
+2023-04-07 09:01:03 INFO NavicoRecieve - receive: Reading file: eenx_logs/debug_log_ranges_and_doppler.pcap
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: gain: 50.19607843137255, rain: 0.0, range: 463.0
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 50.0
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 50.0
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 50.0
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 50.0
+2023-04-07 09:01:03 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:01:46 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 50.0
+2023-04-07 09:01:46 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:02:32 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 50.0
+2023-04-07 09:02:32 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:02:39 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 75.0
+2023-04-07 09:02:39 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:02:51 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 100.0
+2023-04-07 09:02:51 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:03:03 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 250.0
+2023-04-07 09:03:03 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:03:10 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 250.0
+2023-04-07 09:03:10 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:03:15 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 500.0
+2023-04-07 09:03:15 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:03:26 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 750.0
+2023-04-07 09:03:26 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:03:37 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 1000.0
+2023-04-07 09:03:37 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:03:47 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 1500.0
+2023-04-07 09:03:47 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:03:48 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 1500.0
+2023-04-07 09:03:48 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:03:59 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 2000.0
+2023-04-07 09:03:59 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200
+2023-04-07 09:04:12 INFO NavicoRecieve - process_report: gain: 10.980392156862745, rain: 40.78431372549019, range: 3000.0
+2023-04-07 09:04:12 INFO NavicoRecieve - process_report: radar doppler message. State: 0, Speed: 200

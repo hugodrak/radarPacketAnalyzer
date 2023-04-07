@@ -38,6 +38,7 @@ class RadarInfo:
         self.m_state = "RADAR_OFF"
         self.m_spokes = spokes
         self.m_first_found = False
+        self.m_last_spoke = -1
         self.m_missing_spokes = 0
         self.m_range_adjustment = 0
         self.m_pixels_per_meter = 0.

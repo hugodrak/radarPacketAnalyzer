@@ -2,7 +2,7 @@ import threading
 import queue
 import time
 from src.tools import transmit_cmd, packet_addr, NetworkAddr
-from scapy.all import sniff, UDP, Ether, IP, get_if_list, rdpcap
+from scapy.all import sniff, UDP, Ether, IP, get_if_list, PcapReader
 import struct
 
 WAKE_ADDR = NetworkAddr("236.6.7.5", 6878)
@@ -15,24 +15,20 @@ def wake_radar():
 
 def receive_udp_packet(log, received_queue):
 	f = "udp and dst host 236.6.7.5 and dst port 6878"
-
-	found = False
-	while not found:
-		res = sniff(offline=log, filter=f)
-		# print(res)
-		if len(res) > 0:
-			for pkt in res:
-				# print(len(pkt))
-				if pkt[Ether][IP].haslayer(UDP):
-					if pkt[Ether][IP][UDP].dport == 6878 and pkt[Ether][IP].dst == "236.6.7.5":
-						udp = pkt[Ether][IP][UDP]
-						if "load" in dir(udp.payload):
-							payload = udp.payload.load
-							if payload[:2] == b'\x01\xb2':
-								# print(pkt)
-								# print(f"Received UDP packet from : {payload}")
-								received_queue.put(payload)
-								return True
+	pcap = PcapReader(log)
+	#pcap = sniff(offline=log, filter=f) # might set limit to not read whole file...
+	for pkt in pcap:
+		if pkt[Ether].haslayer(IP):
+			if pkt[Ether][IP].haslayer(UDP):
+				if pkt[Ether][IP][UDP].dport == 6878 and pkt[Ether][IP].dst == "236.6.7.5":
+					udp = pkt[Ether][IP][UDP]
+					if "load" in dir(udp.payload):
+						payload = udp.payload.load
+						if payload[:2] == b'\x01\xb2':
+							# print(pkt)
+							# print(f"Received UDP packet from : {payload}")
+							received_queue.put(payload)
+							return True
 
 
 class NavicoInfo:
