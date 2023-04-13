@@ -86,8 +86,9 @@ class NavicoControl:
 		                 (decimeters >> 24) & 0xFF])
 			self.transmit_cmd(pck)
 
-	def set_gain(self, value):
-		v = (value + 1) * 255 / 100
+	def set_gain(self, value: float):
+		#v = (value + 1) * 255 / 100#
+		v = round(value * 255)
 		if v > 255:
 			v = 255
 		# TODO: implement auto on index 6
@@ -96,8 +97,9 @@ class NavicoControl:
 		logging.info(f"Gain set to {v}")
 
 	# TODO: check radar type
-	def set_sea(self, value):
-		v = (value + 1) * 255 / 100
+	def set_sea(self, value: float):
+		#v = (value + 1) * 255 / 100
+		v = round(value * 255)
 		if v > 255:
 			v = 255
 		# TODO: implement auto on index 6

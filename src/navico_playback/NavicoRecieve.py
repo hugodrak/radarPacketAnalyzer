@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import sys
 import threading
@@ -17,12 +18,14 @@ from scapy.all import sniff, UDP, Ether, IP, get_if_list, PcapReader
 import logging
 
 LOGNAME = "eenx_logs/stenpiren_ny/stenpiren_1_2.pcap"
+#LOGNAME = "eenx_logs/debug_log_ranges_and_doppler.pcap"
+#LOGNAME = "eenx_logs/stenpiren_ny/stenpiren_1_1_00001_20230406104818.pcap"
 
 
 
 #logging.getLogger().setLevel(logging.INFO)
-logging.basicConfig(filename='output/stenpiren_1_2.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S')
+# logging.basicConfig(filename=os.path.join("output/", os.path.basename(os.path.splitext(LOGNAME)[0])+".log"), encoding='utf-8', level=logging.INFO, format='%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s',
+#     datefmt='%Y-%m-%d %H:%M:%S')
 
 NAVICO_SPOKES = 2048
 
@@ -134,7 +137,8 @@ class NavicoReceive:
                 self.ri.m_doppler_state = s[17]
                 self.ri.m_doppler_speed = s[18]
                 # if self.ri.m_doppler_state != 0:
-                #     logging.warning(f"doppler State: {self.ri.m_doppler_state}")
+                #     g=0
+                #     #logging.warning(f"doppler State: {self.ri.m_doppler_state}")
                 logging.info(f"radar doppler message. State: {self.ri.m_doppler_state}, Speed: {self.ri.m_doppler_speed}")
 
             elif report_len == 18 and report[0] == 0x08: #length 18, 08 C4 contains scan speed, noise rejection and target_separation and sidelobe suppression
@@ -166,14 +170,14 @@ class NavicoReceive:
         doppler_spokes_count = 0
         # if self.r_change:
         #     raw_out.write(f"RANGE: {self.ri.m_range}\n")
-        for di in range(0, len(pkt)-8, 536):
+        for di in range(8, len(pkt), 536):
             d = pkt[di:di + 536]
 
             if len(d) != 536:
                 logging.warning(f"Frame at: {int(now)} is non-complete, skipping")
                 continue
 
-            h = d[8:24+8]
+            h = d[:24]
 
             # if self.r_change:
             #     raw_out.write(" ".join([f"{x:02x}" for x in h])+"\n")
@@ -232,32 +236,90 @@ class NavicoReceive:
 
             # TODO: handle doppler
             raw_hits = d[header_len:]
+
+
+
             if len(raw_hits) != 512:
                 logging.warning(f"Frame at: {int(now)} has non-complete spokes, skipping")
                 continue
+
+
+            """
+            When in doppler, the spoke is split into two bins, high and low.
+            These numbers are almost always one from eachother. they go from 0-d, if one is f or e then it is 
+            receding (f)or approaching(e)
+            """
+
             hits = np.zeros(512, dtype=np.float32)
             doppler_spoke = np.zeros(512, dtype=np.uint8)
             # TODO: implement 512 dopplerspoke and send and log
             if self.ri.m_doppler_state == 1 or self.ri.m_doppler_state == 2:  # normal or approaching
-                for i, h in enumerate(raw_hits):
-                    low_d = (h & 0x0f)
-                    high_d = ((h & 0xf0) >> 4)
-                    if (low_d == 0xf or low_d == 0xe) and (high_d == 0xf or high_d == 0xe):
-                        # This should be right but try live to change between mode 1 and 2 and see difference, else check radarpi code
-                        if h == 0xff:
-                            doppler_spoke[i] = 1
-                            #print(f"{h:02x} {high_d:01x} {low_d:01x}")
-                        elif h == 0xee:
-                            doppler_spoke[i] = 2
+                for i, hit in enumerate(raw_hits):
+                    low = hit & 0x0f
+                    high = (hit & 0xf0) >> 4
+                    if (low == 0xf or low == 0xe) and (high == 0xf or high == 0xe):
+                        if low == 0xf:
+                            if high == 0xf:
+                                doppler_spoke[i] = 1
+                                hits[i] = 1.0
+                            elif high == 0xe:
+                                doppler_spoke[i] = 0
+                                hits[i] = 1.0
+                            else:
+                                doppler_spoke[i] = 1
+                                hits[i] = high / 13  # (d = 26)
+                        elif low == 0xe:
+                            if high == 0xe:
+                                doppler_spoke[i] = 2
+                                hits[i] = 1.0
+                            elif high == 0xf:
+                                doppler_spoke[i] = 0
+                                hits[i] = 1.0
+                            else:
+                                doppler_spoke[i] = 2
+                                hits[i] = high / 13  # (d = 26)
+                        elif high == 0xf:
+                            if low == 0xf:
+                                doppler_spoke[i] = 1
+                                hits[i] = 1.0
+                            elif low == 0xe:
+                                doppler_spoke[i] = 0
+                                hits[i] = 1.0
+                            else:
+                                doppler_spoke[i] = 1
+                                hits[i] = low / 13  # (d = 26)
+                        elif high == 0xe:
+                            if low == 0xe:
+                                doppler_spoke[i] = 2
+                                hits[i] = 1.0
+                            elif low == 0xf:
+                                doppler_spoke[i] = 0
+                                hits[i] = 1.0
+                            else:
+                                doppler_spoke[i] = 2
+                                hits[i] = low / 13  # (d = 26)
+                        else:
+                            hits[i] = (low+high)/26  #(d+d = 26)
 
-                        hits[i] = 1.0
-                    else:
-                        doppler_spoke[i] = 0
-                        hits[i] = round(h/255, 5)
+
+                    # if (low == 0xf or low == 0xe) or (high == 0xf or high == 0xe):
+                    #     # This should be right but try live to change between mode 1 and 2 and see difference, else check radarpi code
+                    #     if hit == 0xff:
+                    #         print("D: R")
+                    #         doppler_spoke[i] = 1
+                    #     elif hit == 0xee:
+                    #         #print("D: A")
+                    #         doppler_spoke[i] = 2
+                    #     else:
+                    #         print("strange doppler val", f"{hit:02x}")
+                    #
+                    #     hits[i] = 1.0
+                    # else:
+                    #     doppler_spoke[i] = 0
+                    #     hits[i] = (low+high)/26  #(d+d = 26)
             else:
                 hits = np.asarray(raw_hits).astype(np.float32)/255
-                # for i, h in enumerate(raw_hits):
-                #     hits[i] = round(h/255, 5)
+
 
 
             # TODO: do not send heading due to lack of GPS.
@@ -282,11 +344,6 @@ class NavicoReceive:
         #     self.output_doppler.write(",".join(ds)+'\n')
 
         #self.write_spoke_to_csv(spokes)  # TODO: publish
-
-    def write_spoke_to_csv(self, spokes):
-        # time,bearing,spoke_index,range,lat,long,
-        for s in spokes:
-            self.output.write(f'{s["time"]},{int(s["angle"])},{round(s["range_meters"], 2)},0.0,0.0,{",".join([str(round(int(x)/255, 5)) for x in s["spoke"]])}\n')
 
     def start(self):
         self.nControl.start(self.logfile)
@@ -347,70 +404,72 @@ class NavicoReceive:
         pc = 0
         logging.info(f"Reading file: {self.logfile}")
         #pcap = PcapReader(self.logfile)
-        pcap = dpkt.pcap.Reader(open(self.logfile, "rb"))
-        #pcap = sniff(offline=self.logfile, filter="udp")  # might be to slow
-        #logging.info(f"{len(pkts)} packets")
-        buffer = {}
-        c = 0
-        c2 = 0
-        lc = 0
-        saved = []
-        prev_id = 0
-        total_pkt_count = 0
-        for ts, buf in pcap:
-            eth = dpkt.ethernet.Ethernet(buf)
+        with open(self.logfile, "rb") as raw_log:
+            pcap = dpkt.pcap.Reader(raw_log)
+            #pcap = sniff(offline=self.logfile, filter="udp")  # might be to slow
+            #logging.info(f"{len(pkts)} packets")
+            buffer = {}
+            c = 0
+            c2 = 0
+            lc = 0
+            saved = []
+            prev_id = 0
+            total_pkt_count = 0
+            for ts, buf in pcap:
+                eth = dpkt.ethernet.Ethernet(buf)
 
-            if eth.type == dpkt.ethernet.ETH_TYPE_IP:
-                ip = eth.data
-                dst_str = ".".join([str(x) for x in ip.dst])
-                if dst_str == self.nControl.addresses.addrReportB.addr:
-                    if ip.p == dpkt.ip.IP_PROTO_UDP:
-                        udp = ip.data
-                        if type(udp) == dpkt.udp.UDP:
-                            if udp.dport == self.nControl.addresses.addrReportB.port:
+                if eth.type == dpkt.ethernet.ETH_TYPE_IP:
+                    ip = eth.data
+                    dst_str = ".".join([str(x) for x in ip.dst])
+                    if dst_str == self.nControl.addresses.addrReportB.addr:
+                        if ip.p == dpkt.ip.IP_PROTO_UDP:
+                            udp = ip.data
+                            if type(udp) == dpkt.udp.UDP:
+                                if udp.dport == self.nControl.addresses.addrReportB.port:
 
-                                payload = udp.data
-                                self.process_report(payload)
-                if dst_str == self.nControl.addresses.addrDataB.addr:
-                    id = ip.id
-                    if ip.p == dpkt.ip.IP_PROTO_UDP:
-                        udp = ip.data
+                                    payload = udp.data
+                                    self.process_report(payload)
+                    if dst_str == self.nControl.addresses.addrDataB.addr:
+                        id = ip.id
+                        if ip.p == dpkt.ip.IP_PROTO_UDP:
+                            udp = ip.data
 
-                        if type(udp) == dpkt.udp.UDP:
-                            if udp.dport == self.nControl.addresses.addrDataB.port:
-                                if ip.mf and ip.offset == 0:
-                                    # if c2 > 2:
-                                    #     break
-                                    # c2 += 1
-                                    buffer[ip.offset] = udp.data
-                                    lc += len(udp.data)
-                                    c += 1
-                        else:
-                            if ip.mf:
-                                buffer[ip.offset] = ip.data
-                                lc += len(ip.data)
-                                c += 1
+                            if type(udp) == dpkt.udp.UDP:
+                                if udp.dport == self.nControl.addresses.addrDataB.port:
+                                    if ip.mf and ip.offset == 0:
+                                        # if c2 > 2:
+                                        #     break
+                                        # c2 += 1
+                                        buffer[ip.offset] = udp.data
+                                        lc += len(udp.data)
+                                        c += 1
                             else:
-                                buffer[ip.offset] = ip.data
-                                lc += len(ip.data)
-                                c += 1
-                                payload = bytearray()
-                                for key in sorted(buffer.keys()):
-                                    payload.extend(buffer[key])
-
-                                if c == 12 and lc == 17160:
-                                    total_pkt_count += 1
-                                    if (total_pkt_count % 1000) == 0:
-                                        logging.info(f"Packet No. {total_pkt_count}")
-                                    self.process_spokes(payload)
-
-                                    #logging.warning(f"Good packet")
+                                if ip.mf:
+                                    buffer[ip.offset] = ip.data
+                                    lc += len(ip.data)
+                                    c += 1
                                 else:
-                                    logging.warning(f"Bad packet: c: {c}, lc: {lc}, id: {id}")
+                                    buffer[ip.offset] = ip.data
+                                    lc += len(ip.data)
+                                    c += 1
+                                    payload = bytearray()
+                                    for key in sorted(buffer.keys()):
+                                        payload.extend(buffer[key])
 
-                                c = 0
-                                lc = 0
-        logging.info(f"Done! Read {total_pkt_count*32} spokes!")
+                                    if c == 12 and lc == 17160:
+                                        total_pkt_count += 1
+                                        if (total_pkt_count % 1000) == 0:
+                                            logging.info(f"Packet No. {total_pkt_count}")
+                                        self.process_spokes(payload)
+
+                                        #logging.warning(f"Good packet")
+                                    else:
+                                        logging.warning(f"Bad packet: c: {c}, lc: {lc}, id: {id}")
+
+                                    c = 0
+                                    lc = 0
+            logging.info("End timestamp:", datetime.strftime(datetime.fromtimestamp(ts), "%y-%m-%d %H:%M:%S"), ts)
+            logging.info(f"Done! Read {total_pkt_count*32} spokes!")
 
 
 if __name__ == "__main__":
